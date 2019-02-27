@@ -27,7 +27,7 @@ impl Alternative {
 	pub(crate) fn load(self) -> Result<ChainSpec, String> {
 		Ok(match self {
 			Alternative::Development => ChainSpec::from_genesis(
-				"Development",
+				"Augen Testnet",
 				"dev",
 				|| testnet_genesis(vec![
 					ed25519::Pair::from_seed(b"Alice                           ").public().into(),

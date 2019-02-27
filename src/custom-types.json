@@ -1,8 +1,8 @@
 {
-    "KittyStruct": {
-        "id": "H256",
-        "dna": "H256",
-        "price": "Balance",
-        "gen": "u64"
-    }
+  "Kitty": {
+    "id": "H256",
+    "dna": "H256",
+    "price": "Balance",
+    "gen": "u64"
+  }
 }

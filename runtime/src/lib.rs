@@ -182,7 +182,9 @@ impl template::Trait for Runtime {
 	type Event = Event;
 }
 
-impl substratekitties::Trait for Runtime {}
+impl substratekitties::Trait for Runtime {
+  type Event = Event;
+}
 
 construct_runtime!(
 	pub enum Runtime with Log(InternalLog: DigestItem<Hash, Ed25519AuthorityId>) where
@@ -200,7 +202,7 @@ construct_runtime!(
 		Fees: fees::{Module, Storage, Config<T>, Event<T>},
 		// Used for the module template in `./template.rs`
 		TemplateModule: template::{Module, Call, Storage, Event<T>},
-		Substratekitties: substratekitties::{Module, Call, Storage},
+		Substratekitties: substratekitties::{Module, Call, Storage, Event<T>},
 	}
 );
 

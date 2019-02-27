@@ -35,15 +35,17 @@ decl_event!(
 );
 
 decl_storage! {
-    trait Store for Module<T: Trait> as KittyStorage {
+    trait Store for Module<T: Trait> as Kitty {
         Kitties get(kitty): map T::Hash => Kitty<T::Hash, T::Balance>;
         KittyOwner get(owner_of): map T::Hash => Option<T::AccountId>;
 
-        AllKittiesArray get(kitty_by_index): map u64 => T::Hash;
+        AllKittiesArray get(all_kitties_by_index): map u64 => T::Hash;
         AllKittiesCount get(all_kitties_count): u64;
         AllKittiesIndex: map T::Hash => u64;
 
-        OwnedKitty get(kitty_of_owner): map T::AccountId => T::Hash;
+        UserKittiesArray get(owned_kitty_by_index): map (T::AccountId, u64) => T::Hash;
+        UserKittiesCount get(owned_kitty_count): map T::AccountId => u64;
+        UserKittiesIndex: map T::Hash => u64;
         
         Nonce: u64;
     }
@@ -57,9 +59,13 @@ decl_module! {
         fn create_kitty(origin) -> Result {
             let sender = ensure_signed(origin)?;
 
+            let owned_kitty_count = Self::owned_kitty_count(&sender);
+            let new_owned_kitty_count = owned_kitty_count.checked_add(1)
+              .ok_or("Over 18 quintillion for the user!!! Too many kiities!")?;
+
             let all_kitties_count = Self::all_kitties_count();
-            let new_count = all_kitties_count.checked_add(1).ok_or("Over 18 quintillion!!! Too many kiities!")?;
-            let new_index = new_count - 1; // Zero-based index
+            let new_all_kitties_count = all_kitties_count.checked_add(1)
+              .ok_or("Over 18 quintillion!!! Too many kiities!")?;
 
             // Nonce and seed a new random hash
             let nonce = <Nonce<T>>::get();
@@ -80,11 +86,13 @@ decl_module! {
             <KittyOwner<T>>::insert(random_hash, &sender);
 
             // Update global kitties tracking
-            <AllKittiesArray<T>>::insert(new_index, random_hash);
-            <AllKittiesIndex<T>>::insert(random_hash, new_index);
-            <AllKittiesCount<T>>::put(new_count);
+            <AllKittiesArray<T>>::insert(all_kitties_count, random_hash);
+            <AllKittiesIndex<T>>::insert(random_hash, all_kitties_count);
+            <AllKittiesCount<T>>::put(new_all_kitties_count);
 
-            <OwnedKitty<T>>::insert(&sender, random_hash);
+            <UserKittiesArray<T>>::insert((sender.clone(), owned_kitty_count), random_hash);
+            <UserKittiesIndex<T>>::insert(random_hash, owned_kitty_count);
+            <UserKittiesCount<T>>::insert(&sender, new_owned_kitty_count);
 
             // Update nonce
             <Nonce<T>>::mutate(|n| *n += 1);

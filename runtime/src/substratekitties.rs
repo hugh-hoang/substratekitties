@@ -59,21 +59,12 @@ decl_module! {
         fn create_kitty(origin) -> Result {
             let sender = ensure_signed(origin)?;
 
-            let owned_kitty_count = Self::owned_kitty_count(&sender);
-            let new_owned_kitty_count = owned_kitty_count.checked_add(1)
-              .ok_or("Over 18 quintillion for the user!!! Too many kiities!")?;
-
-            let all_kitties_count = Self::all_kitties_count();
-            let new_all_kitties_count = all_kitties_count.checked_add(1)
-              .ok_or("Over 18 quintillion!!! Too many kiities!")?;
-
             // Nonce and seed a new random hash
             let nonce = <Nonce<T>>::get();
             let random_hash = (<system::Module<T>>::random_seed(), &sender, nonce)
                 .using_encoded(<T as system::Trait>::Hashing::hash);
 
-            ensure!(!<Kitties<T>>::exists(random_hash), "The kitty already exists");
-
+            // New kitty
             let new_kitty = Kitty {
                 id: random_hash,
                 dna: random_hash,
@@ -81,25 +72,45 @@ decl_module! {
                 gen: 0
             };
 
-            // Update new kitty store
-            <Kitties<T>>::insert(random_hash, new_kitty);
-            <KittyOwner<T>>::insert(random_hash, &sender);
-
-            // Update global kitties tracking
-            <AllKittiesArray<T>>::insert(all_kitties_count, random_hash);
-            <AllKittiesIndex<T>>::insert(random_hash, all_kitties_count);
-            <AllKittiesCount<T>>::put(new_all_kitties_count);
-
-            <UserKittiesArray<T>>::insert((sender.clone(), owned_kitty_count), random_hash);
-            <UserKittiesIndex<T>>::insert(random_hash, owned_kitty_count);
-            <UserKittiesCount<T>>::insert(&sender, new_owned_kitty_count);
+            // Do the state stuff
+            Self::_mint(sender, random_hash, new_kitty)?;
 
             // Update nonce
             <Nonce<T>>::mutate(|n| *n += 1);
 
-            Self::deposit_event(RawEvent::Created(sender, random_hash));
-
             Ok(())
         }
     }
+}
+
+impl<T: Trait> Module<T> {
+  fn _mint(to: T::AccountId, kitty_id: T::Hash, new_kitty: Kitty<T::Hash, T::Balance>) -> Result {
+
+    ensure!(!<Kitties<T>>::exists(kitty_id), "The kitty already exists");
+    
+    let owned_kitty_count = Self::owned_kitty_count(&to);
+    let new_owned_kitty_count = owned_kitty_count.checked_add(1)
+      .ok_or("Over 18 quintillion for the user!!! Too many kiities!")?;
+
+    let all_kitties_count = Self::all_kitties_count();
+    let new_all_kitties_count = all_kitties_count.checked_add(1)
+      .ok_or("Over 18 quintillion!!! Too many kiities!")?;
+
+    // Update new kitty store
+    <Kitties<T>>::insert(kitty_id, new_kitty);
+    <KittyOwner<T>>::insert(kitty_id, &to);
+
+    // Update global kitties tracking
+    <AllKittiesArray<T>>::insert(all_kitties_count, kitty_id);
+    <AllKittiesIndex<T>>::insert(kitty_id, all_kitties_count);
+    <AllKittiesCount<T>>::put(new_all_kitties_count);
+
+    <UserKittiesArray<T>>::insert((to.clone(), owned_kitty_count), kitty_id);
+    <UserKittiesIndex<T>>::insert(kitty_id, owned_kitty_count);
+    <UserKittiesCount<T>>::insert(&to, new_owned_kitty_count);
+
+    Self::deposit_event(RawEvent::Created(to, kitty_id));
+
+    Ok(())
+  }
 }

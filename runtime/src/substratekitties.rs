@@ -28,9 +28,11 @@ decl_event!(
   pub enum Event<T>
   where
     <T as system::Trait>::AccountId,
-    <T as system::Trait>::Hash
+    <T as system::Trait>::Hash,
+    <T as balances::Trait>::Balance
     {
       Created(AccountId, Hash),
+      PriceSet(AccountId, Hash, Balance),
     }
 );
 
@@ -77,6 +79,35 @@ decl_module! {
 
             // Update nonce
             <Nonce<T>>::mutate(|n| *n += 1);
+
+            Ok(())
+        }
+
+        fn set_price(origin, kitty_id: T::Hash, new_price: T::Balance) -> Result {
+            let sender = ensure_signed(origin)?;
+
+            // Check that the kitty with `kitty_id` exists
+            ensure!(<Kitties<T>>::exists(kitty_id), "This kitty does not exist.");
+
+            // Check if owner exists for `kitty_id`
+            //      - If it does, check that `sender` is the `owner`
+            //      - If it doesn't, return an `Err()` that no `owner` exists
+            let owner = Self::owner_of(kitty_id).ok_or("This kitty has no owner.")?;
+            ensure!(owner == sender, "You are not the owner of this kitty.");
+
+            let mut kitty = Self::kitty(kitty_id);
+
+            // Set the new price for the kitty
+            kitty.price = new_price;
+
+            // Update the kitty in storage
+            <Kitties<T>>::insert(kitty_id, kitty);
+
+            // Deposit a `PriceSet` event with relevant data
+            //      - owner
+            //      - kitty id
+            //      - the new price
+            Self::deposit_event(RawEvent::PriceSet(owner, kitty_id, new_price));
 
             Ok(())
         }

@@ -1,6 +1,6 @@
 use parity_codec::Encode;
 use parity_codec_derive::{Decode, Encode};
-use runtime_primitives::traits::{As, Hash};
+use runtime_primitives::traits::{As, Hash, Zero};
 use support::{
   decl_event, decl_module, decl_storage, dispatch::Result, ensure, StorageMap, StorageValue,
 };
@@ -28,6 +28,7 @@ decl_event!(
       Created(AccountId, Hash),
       PriceSet(AccountId, Hash, Balance),
       Transferred(AccountId, AccountId, Hash),
+      Bought(AccountId, AccountId, Hash, Balance),
     }
 );
 
@@ -114,6 +115,49 @@ decl_module! {
             ensure!(owner == sender, "You do not own this kitty.");
 
             Self::_transfer_from(sender, to, kitty_id)?;
+
+            Ok(())
+        }
+
+        fn buy_kitty(origin, kitty_id: T::Hash, max_price: T::Balance) -> Result {
+            let buyer = ensure_signed(origin)?;
+
+            // ACTION: Check the kitty `exists()`
+            ensure!(<Kitties<T>>::exists(kitty_id), "This kitty does not exist.");
+
+            // ACTION: Get the `owner` of the kitty if it exists, otherwise return an `Err()`
+            let owner = Self::owner_of(kitty_id).ok_or("No owner for this kitty.")?;
+            
+            // ACTION: Check that the `sender` is not the `owner`
+            ensure!(owner != buyer, "You cannot buy your own kitty.");
+
+            let mut kitty = Self::kitty(kitty_id);
+
+            // ACTION: Get the `kitty_price` and check that it is not zero
+            //      HINT:  `runtime_primitives::traits::Zero` allows you to call `kitty_price.is_zero()` which returns a bool
+            let kitty_price = kitty.price;
+            ensure!(!kitty_price.is_zero(), "The kitty is not for sale.");
+
+            // ACTION: Check `kitty_price` is less than or equal to max_price
+            ensure!(kitty_price <= max_price, "The kitty costs more than the price you offer.");
+
+            // ACTION: Use the `Balances` module's `make_transfer()` function to safely transfer funds
+            <balances::Module<T>>::make_transfer(&buyer, &owner, kitty_price)?;
+
+            // ACTION: Transfer the kitty
+             Self::_transfer_from(owner.clone(), buyer.clone(), kitty_id)?;
+
+            // ACTION: Reset kitty price back to zero, and update the storage
+            kitty.price = <T::Balance as As<u64>>::sa(0);
+            <Kitties<T>>::insert(kitty_id, kitty);
+
+            // ACTION: Create an event for the cat being bought with relevant details
+            //      - new owner
+            //      - old owner
+            //      - the kitty id
+            //      - the price sold for
+
+            Self::deposit_event(RawEvent::Bought(buyer, owner, kitty_id, kitty_price));
 
             Ok(())
         }

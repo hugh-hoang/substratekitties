@@ -19,7 +19,18 @@
     },
     {
       "type": "shell",
-      "label": "build",
+      "label": "build-runtime",
+      "command": "./build.sh",
+      "presentation": {
+        "showReuseMessage": false
+      },
+      "problemMatcher": [
+        "$rustc"
+      ]
+    },
+    {
+      "type": "shell",
+      "label": "build-all",
       "command": "./release.sh",
       "presentation": {
         "showReuseMessage": false
